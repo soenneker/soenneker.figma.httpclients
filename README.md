@@ -1,43 +1,60 @@
 [![](https://img.shields.io/nuget/v/soenneker.figma.httpclients.svg?style=for-the-badge)](https://www.nuget.org/packages/soenneker.figma.httpclients/)
 [![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.figma.httpclients/publish-package.yml?style=for-the-badge)](https://github.com/soenneker/soenneker.figma.httpclients/actions/workflows/publish-package.yml)
 [![](https://img.shields.io/nuget/dt/soenneker.figma.httpclients.svg?style=for-the-badge)](https://www.nuget.org/packages/soenneker.figma.httpclients/)
+[![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.figma.httpclients/codeql.yml?label=CodeQL&style=for-the-badge)](https://github.com/soenneker/soenneker.figma.httpclients/actions/workflows/codeql.yml)
 
 # Soenneker.Figma.HttpClients
 
-A .NET thread-safe singleton HttpClient for.
+A cached, authenticated `HttpClient` for the Figma REST API.
 
-## Install
+## Installation
 
 ```bash
 dotnet add package Soenneker.Figma.HttpClients
 ```
 
-## Quick start
+## Register the client
 
 ```csharp
 using Soenneker.Figma.HttpClients.Registrars;
 using Microsoft.Extensions.DependencyInjection;
 
-var services = new ServiceCollection();
-var result = services.AddFigmaOpenApiHttpClientAsSingleton();
+services.AddFigmaOpenApiHttpClientAsSingleton();
 ```
 
-Adds `FigmaOpenApiHttpClient` as a singleton service.
+Register the wrapper as a singleton when it is shared by scoped Figma utilities. Disposing a scoped utility must not tear down the cached transport used by later scopes.
 
-## What you get
+## Configuration
 
-- `IFigmaOpenApiHttpClient` — A .NET thread-safe singleton HttpClient for.
-- `FigmaOpenApiHttpClientRegistrar` — Registers the OpenAPI HttpClient wrapper for dependency injection.
+```json
+{
+  "Figma": {
+    "ApiKey": "your-figma-token"
+  }
+}
+```
 
-## API at a glance
+`Figma:ApiKey` is required. Requests use `https://api.figma.com` and the `X-Figma-Token` header by default. These optional settings override them:
 
-| API | What it does | Result / important behavior |
-| --- | --- | --- |
-| `FigmaOpenApiHttpClientRegistrar.AddFigmaOpenApiHttpClientAsSingleton(services)` | Adds `FigmaOpenApiHttpClient` as a singleton service. | The same service collection, so additional registrations can be chained. |
-| `FigmaOpenApiHttpClientRegistrar.AddFigmaOpenApiHttpClientAsScoped(services)` | Adds `FigmaOpenApiHttpClient` as a scoped service. | The same service collection, so additional registrations can be chained. |
+- `Figma:ClientBaseUrl` changes the API base address, which is useful for a test server.
+- `Figma:AuthHeaderName` changes the authentication header name.
+- `Figma:AuthHeaderValueTemplate` changes the header value and replaces `{token}` with the configured API key. For example, `Bearer {token}`.
 
-## Practical notes
+Do not commit the API key to configuration files. Supply it through user secrets, environment-specific secret storage, or your deployment platform.
 
-- Reuse the registered client instead of constructing one per operation.
-- Calls that return a cached or singleton value reuse the same instance until the owning service is disposed.
-- Dispose instances you own when their scope ends so held resources can be released.
+## Use the client
+
+```csharp
+public sealed class FigmaFilesClient(IFigmaOpenApiHttpClient client)
+{
+    public async Task<string> GetFile(string fileKey, CancellationToken cancellationToken)
+    {
+        HttpClient httpClient = await client.Get(cancellationToken);
+        return await httpClient.GetStringAsync($"/v1/files/{Uri.EscapeDataString(fileKey)}", cancellationToken);
+    }
+}
+```
+
+`Get()` returns the cached `HttpClient`; callers do not own that instance and should not dispose it. DI disposes the wrapper, which removes the cached client. The registrar uses `TryAdd`, so an application can register its own `IFigmaOpenApiHttpClient` first.
+
+This package configures transport and authentication only. It does not validate Figma file keys, retry requests, handle rate limits, or deserialize API responses.

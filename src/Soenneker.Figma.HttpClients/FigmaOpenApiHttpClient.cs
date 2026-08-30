@@ -11,7 +11,6 @@ using Soenneker.Utils.HttpClientCache.Abstract;
 
 namespace Soenneker.Figma.HttpClients;
 
-/// <inheritdoc cref="IFigmaOpenApiHttpClient"/>
 public sealed class FigmaOpenApiHttpClient : IFigmaOpenApiHttpClient
 {
     private readonly IHttpClientCache _httpClientCache;
