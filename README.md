@@ -55,6 +55,6 @@ public sealed class FigmaFilesClient(IFigmaOpenApiHttpClient client)
 }
 ```
 
-`Get()` returns the cached `HttpClient`; callers do not own that instance and should not dispose it. DI disposes the wrapper, which removes the cached client. The registrar uses `TryAdd`, so an application can register its own `IFigmaOpenApiHttpClient` first.
+`Get()` returns the client owned by the provider; callers should not dispose it directly. Disposing the provider removes that exact client from the cache. Scoped provider instances use separate cache entries, so one scope cannot destroy another scope's transport. The registrar uses `TryAdd`, so an application can register its own `IFigmaOpenApiHttpClient` first.
 
 This package configures transport and authentication only. It does not validate Figma file keys, retry requests, handle rate limits, or deserialize API responses.
