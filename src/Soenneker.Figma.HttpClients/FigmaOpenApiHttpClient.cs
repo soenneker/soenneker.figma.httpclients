@@ -30,7 +30,7 @@ public sealed class FigmaOpenApiHttpClient : IFigmaOpenApiHttpClient
     {
         return _httpClientCache.Get(_cacheKey, (config: _config, baseUrl: _config["Figma:ClientBaseUrl"] ?? _prodBaseUrl), static state =>
         {
-            var apiKey = state.config.GetValueStrict<string>("Figma:ApiKey");
+            var apiKey = state.config.GetStringStrict("Figma:ApiKey");
             string authHeaderName = state.config["Figma:AuthHeaderName"] ?? "X-Figma-Token";
             string authHeaderValueTemplate = state.config["Figma:AuthHeaderValueTemplate"] ?? "{token}";
             string authHeaderValue = authHeaderValueTemplate.Replace("{token}", apiKey, StringComparison.Ordinal);
